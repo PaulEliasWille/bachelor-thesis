@@ -1,0 +1,29 @@
+{
+  "name": "healthchecker",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "npm run build:api && npm run build:dashboard && npm run build:dispatcher && npm run build:worker",
+    "build:api": "./node_modules/.bin/esbuild src/functions/api.js --bundle --outdir=dist/api --minify --sourcemap --platform=node --target=es2020 --external:@aws-sdk/*",
+    "build:dashboard": "./node_modules/.bin/esbuild src/functions/dashboard.js --bundle --outdir=dist/dashboard --minify --sourcemap --platform=node --target=es2020 --external:@aws-sdk/* --loader:.js=jsx",
+    "build:dispatcher": "./node_modules/.bin/esbuild src/functions/dispatcher.js --bundle --outdir=dist/dispatcher --minify --sourcemap --platform=node --target=es2020 --external:@aws-sdk/*",
+    "build:worker": "./node_modules/.bin/esbuild src/functions/worker.js --bundle --outdir=dist/worker --minify --sourcemap --platform=node --target=es2020 --external:@aws-sdk/*"
+  },
+  "author": "Paul Wille",
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "^0.23.0"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.614.0",
+    "@aws-sdk/client-sqs": "^3.614.0",
+    "@aws-sdk/lib-dynamodb": "^3.614.0",
+    "hono": "^4.4.13",
+    "moment": "^2.30.1",
+    "nanoid": "^5.0.7",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zod": "^3.23.8"
+  }
+}
