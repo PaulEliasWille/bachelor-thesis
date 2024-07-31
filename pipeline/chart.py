@@ -1,12 +1,51 @@
 import json
 import copy
 import seaborn as sns; sns.set_theme(style="ticks")
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import pandas as pd
 import numpy as np
 import itertools
 import functools
+
+def legend_ext(ax, reverse=False, **kwargs):
+  ax_handles, ax_labels = ax.get_legend_handles_labels()
+  handles = kwargs.get("handles", ax_handles)
+  labels = kwargs.get("labels", ax_labels)
+  num_cols = kwargs.get("ncol", 1)
+
+  if reverse:
+    handles = handles[::-1]
+    labels = labels[::-1]
+
+  num_labels = len(labels)
+  num_rows = (num_labels + num_cols - 1) // num_cols
+
+  default_handle = mpl.patches.Rectangle(
+    (0,0),
+    1, 1,
+    fill=False,
+    edgecolor="none",
+    visible=False
+  )
+  default_label = ""
+
+  new_handles, new_labels = [], []
+  for col_idx in range(num_cols):
+    for row_idx in range(num_rows):
+      idx = col_idx+num_cols*row_idx
+      if idx >= num_labels:
+        new_handles.append(default_handle)
+        new_labels.append(default_label)
+      else:
+        new_handles.append(handles[idx])
+        new_labels.append(labels[idx])
+  
+  kwargs["handles"] = new_handles
+  kwargs["labels"] = new_labels
+
+  ax.legend(**kwargs)
 
 def sort_respecting(items, order):
   order_idx_map = {order: idx for idx, order in enumerate(order)}
@@ -59,24 +98,64 @@ framework_mapping = {
   "gcp_functions": "GCP Functions",
 }
 
+compact_framework_mapping = {
+  "aws_cloudformation_and_sam": "AWS CF & SAM",
+  "serverless": "Serverless",
+  "azure_functions": "Azure Functions",
+  "wrangler": "Wrangler",
+  "firebase": "Firebase",
+  "terraform": "Terraform",
+  "aws_cdk_and_sst": "AWS CDK & SST",
+  "vercel": "Vercel",
+  "azure_durable_functions": "Azure Durable Functions",
+  "azure_resource_manager": "Azure Resource Manager",
+  "architect": "Architect",
+  "netlify": "Netlify",
+  "hono": "Hono",
+  "openwhisk": "OpenWhisk",
+  "alexa_skills_kit": "Alex Skills Kit",
+  "fastly": "Fastly",
+  "gcp_functions": "GCP Functions",
+}
+
 framework_category_mapping = {
-  "aws_cloudformation_and_sam": "IaC",
-  "serverless": "Third-party",
-  "azure_functions": "General-purpose Cloud Provider",
-  "wrangler": "Specialized Cloud Provider",
-  "firebase": "Specialized Cloud Provider",
-  "terraform": "IaC",
-  "aws_cdk_and_sst": "IaC",
-  "vercel": "Specialized Cloud Provider",
-  "azure_durable_functions": "General-purpose Cloud Provider",
-  "azure_resource_manager": "IaC",
-  "architect": "Third-party",
-  "netlify": "Specialized Cloud Provider",
-  "hono": "Third-party",
+  "aws_cloudformation_and_sam": "Platform-specific deployment",
+  "serverless": "Platform-specific deployment",
+  "azure_functions": "Platform-specific runtime",
+  "wrangler": "Platform-specific runtime",
+  "firebase": "Platform-specific runtime",
+  "terraform": "Platform-agnostic deployment",
+  "aws_cdk_and_sst": "Platform-specific deployment",
+  "vercel": "Platform-specific runtime",
+  "azure_durable_functions": "Platform-specific runtime",
+  "azure_resource_manager": "Platform-specific deployment",
+  "architect": "Platform-specific runtime",
+  "netlify": "Platform-specific runtime",
+  "hono": "Platform-agnostic runtime",
   "openwhisk": "Self-hosted",
-  "alexa_skills_kit": "Third-party",
-  "fastly": "Specialized Cloud Provider",
-  "gcp_functions": "General-purpose Cloud Provider",
+  "alexa_skills_kit": "Platform-specific runtime",
+  "fastly": "Platform-specific runtime",
+  "gcp_functions": "Platform-specific runtime",
+}
+
+compact_framework_category_mapping = {
+  "aws_cloudformation_and_sam": "Platform-specific\ndeployment",
+  "serverless": "Platform-specific\ndeployment",
+  "azure_functions": "Platform-specific\nruntime",
+  "wrangler": "Platform-specific\nruntime",
+  "firebase": "Platform-specific\nruntime",
+  "terraform": "Platform-agnostic\ndeployment",
+  "aws_cdk_and_sst": "Platform-specific\ndeployment",
+  "vercel": "Platform-specific\nruntime",
+  "azure_durable_functions": "Platform-specific\nruntime",
+  "azure_resource_manager": "Platform-specific\ndeployment",
+  "architect": "Platform-specific\nruntime",
+  "netlify": "Platform-specific\nruntime",
+  "hono": "Platform-agnostic\nruntime",
+  "openwhisk": "Self-hosted",
+  "alexa_skills_kit": "Platform-specific\nruntime",
+  "fastly": "Platform-specific\nruntime",
+  "gcp_functions": "Platform-specific\nruntime",
 }
 
 trigger_type_mapping = {
@@ -146,7 +225,7 @@ def plot_num_files_per_application(repos, out_dir):
   ax.xaxis.set_major_locator(ticker.MultipleLocator(0.05))
 
   for index, value in enumerate(df["Percentage"]):
-    plt.text(value + 0.0025, index, f'{value:.2%}', va="center")
+    plt.text(value + 0.0025, index, f"{value:.2%}", va="center")
 
   plt.xlim(0, max(df["Percentage"]) * 1.1)
 
@@ -156,7 +235,8 @@ def plot_num_files_per_application(repos, out_dir):
   ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/num_files_per_application.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/num_files_per_application.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/num_files_per_application.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_number_of_files_repository_distribution_v1(repos, out_dir):
@@ -206,7 +286,8 @@ def plot_number_of_files_repository_distribution_v1(repos, out_dir):
   # ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   # ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/number_of_files_repository_distribution_v1.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/number_of_files_repository_distribution_v1.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/number_of_files_repository_distribution_v1.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_number_of_files_repository_distribution_v2(repos, out_dir):
@@ -299,7 +380,8 @@ def plot_number_of_files_repository_distribution_v2(repos, out_dir):
   # ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   # ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/number_of_files_repository_distribution_v2.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/number_of_files_repository_distribution_v2.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/number_of_files_repository_distribution_v2.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_number_of_files_repository_distribution_v3(repos, out_dir):
@@ -335,7 +417,8 @@ def plot_number_of_files_repository_distribution_v3(repos, out_dir):
   # ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   # ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/number_of_files_repository_distribution_v3.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/number_of_files_repository_distribution_v3.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/number_of_files_repository_distribution_v3.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_number_of_files_category_distribution(repos, out_dir):
@@ -389,12 +472,12 @@ def plot_number_of_files_category_distribution(repos, out_dir):
   current_palette = sns.color_palette()
 
   fig, ax = plt.subplots(figsize=(6, 3))
-  plt.stackplot(smoothed_df['x'], smoothed_df.drop(columns='x').T, labels=smoothed_df.columns[1:], colors=current_palette[:num_areas][::-1])
+  plt.stackplot(smoothed_df["x"], smoothed_df.drop(columns="x").T, labels=smoothed_df.columns[1:], colors=current_palette[:num_areas][::-1])
    
   ax.set_xscale("log")
 
   plt.xlabel("Number of Files")
-  plt.ylabel("Distribution of File Categories [%]")
+  plt.ylabel("Distribution [%]")
 
   ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: f"{x*100:.0f}"))
   ax.yaxis.set_minor_formatter(ticker.NullFormatter())
@@ -403,21 +486,17 @@ def plot_number_of_files_category_distribution(repos, out_dir):
   plt.xlim(smoothed_df["x"].min(), smoothed_df["x"].max())
   plt.ylim(0.0, 1.0)
 
-  plt.legend()
-
-  handles, labels = ax.get_legend_handles_labels()
-  ax.legend(handles[::-1], labels[::-1], title='Line', loc='upper left')
-
-  sns.move_legend(
-    ax, "upper left",
-    bbox_to_anchor=(1, 1), ncol=1,
+  legend_ext(
+    ax, loc="lower left", reverse=True,
+    bbox_to_anchor=(0, 1), ncol=3,
     title=None, frameon=False,
   )
 
   # ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   # ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/number_of_files_category_distribution.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/number_of_files_category_distribution.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/number_of_files_category_distribution.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_distribution_of_files_by_category_by_application_size(repos, out_dir):
@@ -520,19 +599,15 @@ def plot_distribution_of_files_by_category_by_application_size(repos, out_dir):
       #else:
         #print(f"{category} + {repo_size} -> 0")
 
-  handles, labels = ax.get_legend_handles_labels()
-  ax.legend(handles[::-1], labels[::-1], title='Line', loc='upper left')
-  # sns.move_legend(ax, "upper left", bbox_to_anchor=(0, -0.3))
-
-  sns.move_legend(
-    ax, "lower left",
+  legend_ext(
+    ax, loc="lower left", reverse=True,
     bbox_to_anchor=(0, 1), ncol=5,
     title=None, frameon=False,
   )
 
   ax.xaxis.set_major_locator(ticker.MultipleLocator(0.2))
 
-  plt.xlabel("Distribution [%] of Files by Category")
+  plt.xlabel("Distribution of Files by Category [%]")
   plt.ylabel("Number of Files in Repository")
 
   plt.xlim(0, 1)
@@ -541,7 +616,8 @@ def plot_distribution_of_files_by_category_by_application_size(repos, out_dir):
   ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
   # plt.show()
-  plt.savefig(f"{out_dir}/distribution_of_files_by_category_by_application_size.png", transparent=True, bbox_inches="tight", pad_inches=1)
+  #plt.savefig(f"{out_dir}/distribution_of_files_by_category_by_application_size.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/distribution_of_files_by_category_by_application_size.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 #####################
@@ -603,7 +679,8 @@ def plot_loc_repository_distribution_v1(repos, out_dir):
   # ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   # ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/loc_repository_distribution_v1.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/loc_repository_distribution_v1.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/loc_repository_distribution_v1.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_loc_repository_distribution_v2(repos, out_dir):
@@ -649,7 +726,8 @@ def plot_loc_repository_distribution_v2(repos, out_dir):
   # ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   # ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/loc_repository_distribution_v2.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/loc_repository_distribution_v2.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/loc_repository_distribution_v2.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_loc_language_distribution(repos, out_dir):
@@ -718,12 +796,12 @@ def plot_loc_language_distribution(repos, out_dir):
   current_palette = sns.color_palette()
 
   fig, ax = plt.subplots(figsize=(6, 3))
-  plt.stackplot(smoothed_df['x'], smoothed_df.drop(columns='x').T, labels=smoothed_df.columns[1:], colors=current_palette[:num_areas][::-1])
+  plt.stackplot(smoothed_df["x"], smoothed_df.drop(columns="x").T, labels=smoothed_df.columns[1:], colors=current_palette[:num_areas][::-1])
   
   ax.set_xscale("log")
 
   plt.xlabel("LoC")
-  plt.ylabel("Distribution of Languages [%]")
+  plt.ylabel("Distribution [%]")
 
   ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: f"{x*100:.0f}"))
   ax.yaxis.set_minor_formatter(ticker.NullFormatter())
@@ -734,19 +812,17 @@ def plot_loc_language_distribution(repos, out_dir):
 
   plt.legend()
 
-  handles, labels = ax.get_legend_handles_labels()
-  ax.legend(handles[::-1], labels[::-1], title='Line', loc='upper left')
-
-  sns.move_legend(
-    ax, "upper left",
-    bbox_to_anchor=(1, 1), ncol=1,
+  legend_ext(
+    ax, loc="lower left", reverse=True,
+    bbox_to_anchor=(0, 1), ncol=3,
     title=None, frameon=False,
   )
 
   # ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   # ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/loc_language_distribution.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/loc_language_distribution.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/loc_language_distribution.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_loc_per_application(repos, out_dir):
@@ -813,7 +889,7 @@ def plot_loc_per_application(repos, out_dir):
   ax.xaxis.set_major_locator(ticker.MultipleLocator(0.05))
 
   for index, value in enumerate(df["Percentage"]):
-    plt.text(value + 0.0025, index, f'{value:.2%}', va="center")
+    plt.text(value + 0.0025, index, f"{value:.2%}", va="center")
 
   plt.xlim(0, max(df["Percentage"]) * 1.1)
 
@@ -823,7 +899,8 @@ def plot_loc_per_application(repos, out_dir):
   ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/lines_of_code_per_application.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/lines_of_code_per_application.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/lines_of_code_per_application.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 #################
@@ -918,7 +995,7 @@ def plot_languages_by_loc_files_and_applications(repos, out_dir):
     if len(unique_languages) < 10:
       unique_languages.add(row["Language"])
 
-  df = df[df['Language'].isin(list(unique_languages))]
+  df = df[df["Language"].isin(list(unique_languages))]
 
   fig, ax = plt.subplots(figsize=(10, 6))
   sns.barplot(x="Percentage", y="Language", hue="Criteria", data=df, orient="h", ax=ax)
@@ -933,7 +1010,8 @@ def plot_languages_by_loc_files_and_applications(repos, out_dir):
   ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: f"{x*100:.0f}%"))
   ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/languages_by_loc_files_and_applications.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/languages_by_loc_files_and_applications.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/languages_by_loc_files_and_applications.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 ###########################
@@ -980,7 +1058,7 @@ def plot_javascript_loc_and_num_functions(repos, out_dir):
   for language in unique_languages:
     df_language = df[df["Language"] == language]
     df_language = df_language.drop(["Language"], axis=1)
-    corr = df_language['LoC'].corr(df_language['NumFunctions'])
+    corr = df_language["LoC"].corr(df_language["NumFunctions"])
 
     language_mapping[language] = f"{language} (Datapoints: {len(df_language):.0f} | Corr: {corr:.2f})"
 
@@ -1003,10 +1081,11 @@ def plot_javascript_loc_and_num_functions(repos, out_dir):
   plt.xlim(30, 130_000)
   plt.yticks([0, 5, 10, 20, 40, 60])
 
-  plt.xlabel("JavaScript LoC")
+  plt.xlabel("LoC")
   plt.ylabel("Number of Functions")
 
-  plt.savefig(f"{out_dir}/javascript_loc_and_num_functions.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/javascript_loc_and_num_functions.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/javascript_loc_and_num_functions.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_num_functions_per_framework(repos, out_dir):
@@ -1027,12 +1106,12 @@ def plot_num_functions_per_framework(repos, out_dir):
     for k, v in num_functions_by_framework.items():
       frameworks_list.append(k)
       num_functions_list.append(v)
-      shared_list.append("Shared" if len(num_functions_by_framework) > 1 else "Exclusive")
+      shared_list.append("Non-exclusive" if len(num_functions_by_framework) > 1 else "Exclusive")
 
   data = {
     "NumFunctions": num_functions_list,
     "Frameworks": frameworks_list,
-    "Shared": shared_list,
+    "Non-exclusive": shared_list,
   }
 
   order = [framework_mapping.get(x, x) for x in [
@@ -1064,14 +1143,14 @@ def plot_num_functions_per_framework(repos, out_dir):
   #plt.gca().set_prop_cycle(None)
   sns.stripplot(
     data=data,
-    x="NumFunctions", y="Frameworks", hue="Shared",
+    x="NumFunctions", y="Frameworks", hue="Non-exclusive",
     jitter=0.2, log_scale=False, alpha=0.8,
     edgecolor="w", linewidth=0.5, order=order,
   )
   #ax.set_xscale("log")
 
-  sns.move_legend(
-    ax, "lower left",
+  legend_ext(
+    ax, loc="lower left",
     bbox_to_anchor=(0, 1),
     ncol=2,
     title=None,
@@ -1095,7 +1174,8 @@ def plot_num_functions_per_framework(repos, out_dir):
   # ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   # ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/num_functions_per_framework.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/num_functions_per_framework.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/num_functions_per_framework.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_num_functions_per_framework_category(repos, out_dir):
@@ -1108,7 +1188,7 @@ def plot_num_functions_per_framework_category(repos, out_dir):
     functions = repo.get("Functions", [])
     for function in functions:
       framework = function["Framework"]
-      framework_category = framework_category_mapping.get(framework, framework)
+      framework_category = compact_framework_category_mapping.get(framework, framework)
       if framework_category not in num_functions_by_category:
         num_functions_by_category[framework_category] = 0
       num_functions_by_category[framework_category] += 1
@@ -1116,12 +1196,12 @@ def plot_num_functions_per_framework_category(repos, out_dir):
     for k, v in num_functions_by_category.items():
       categories_list.append(k)
       num_functions_list.append(v)
-      shared_list.append("Shared" if len(num_functions_by_category) > 1 else "Exclusive")
+      shared_list.append("Non-exclusive" if len(num_functions_by_category) > 1 else "Exclusive")
 
   data = {
     "NumFunctions": num_functions_list,
     "Categories": categories_list,
-    "Shared": shared_list,
+    "Non-exclusive": shared_list,
   }
 
   df = pd.DataFrame(data)
@@ -1132,14 +1212,14 @@ def plot_num_functions_per_framework_category(repos, out_dir):
   #plt.gca().set_prop_cycle(None)
   sns.stripplot(
     data=data,
-    x="NumFunctions", y="Categories", hue="Shared",
+    x="NumFunctions", y="Categories", hue="Non-exclusive",
     jitter=0.2, log_scale=False, alpha=0.8,
-    edgecolor="w", linewidth=0.5, order=unique(framework_category_mapping.values())
+    edgecolor="w", linewidth=0.5, order=unique(compact_framework_category_mapping.values())
   )
   #ax.set_xscale("log")
 
-  sns.move_legend(
-    ax, "lower left",
+  legend_ext(
+    ax, loc="lower left",
     bbox_to_anchor=(0, 1),
     ncol=2,
     title=None,
@@ -1163,7 +1243,8 @@ def plot_num_functions_per_framework_category(repos, out_dir):
   # ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   # ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/num_functions_per_framework_category.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/num_functions_per_framework_category.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/num_functions_per_framework_category.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_num_functions_per_platform(repos, out_dir):
@@ -1185,12 +1266,12 @@ def plot_num_functions_per_platform(repos, out_dir):
       platforms_list.append(k)
       num_functions_list.append(v)
 
-      shared_list.append("Shared" if len(num_functions_by_platform) > 1 else "Exclusive")
+      shared_list.append("Non-exclusive" if len(num_functions_by_platform) > 1 else "Exclusive")
 
   data = {
     "NumFunctions": num_functions_list,
     "Platforms": platforms_list,
-    "Shared": shared_list,
+    "Non-exclusive": shared_list,
   }
 
   df = pd.DataFrame(data)
@@ -1200,14 +1281,14 @@ def plot_num_functions_per_platform(repos, out_dir):
   # for Matplotlib version >= 1.5
   #plt.gca().set_prop_cycle(None)
   sns.stripplot(
-    data=data, x="NumFunctions", y="Platforms", hue="Shared",
+    data=data, x="NumFunctions", y="Platforms", hue="Non-exclusive",
     jitter=0.2, log_scale=False, alpha=0.8,
     edgecolor="w", linewidth=0.5, order=unique(platform_mapping.values()),
   )
   #ax.set_xscale("log")
 
-  sns.move_legend(
-    ax, "lower left",
+  legend_ext(
+    ax, loc="lower left",
     bbox_to_anchor=(0, 1),
     ncol=2,
     title=None,
@@ -1230,7 +1311,8 @@ def plot_num_functions_per_platform(repos, out_dir):
   # ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   # ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/num_functions_per_platform.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/num_functions_per_platform.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/num_functions_per_platform.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_num_functions_per_execution_location(repos, out_dir):
@@ -1252,12 +1334,12 @@ def plot_num_functions_per_execution_location(repos, out_dir):
       execution_locations_list.append(k)
       num_functions_list.append(v)
 
-      shared_list.append("Shared" if len(num_functions_by_execution_location) > 1 else "Exclusive")
+      shared_list.append("Non-exclusive" if len(num_functions_by_execution_location) > 1 else "Exclusive")
 
   data = {
     "NumFunctions": num_functions_list,
     "ExecutionLocations": execution_locations_list,
-    "Shared": shared_list,
+    "Non-exclusive": shared_list,
   }
 
   df = pd.DataFrame(data)
@@ -1267,14 +1349,14 @@ def plot_num_functions_per_execution_location(repos, out_dir):
   # for Matplotlib version >= 1.5
   #plt.gca().set_prop_cycle(None)
   sns.stripplot(
-    data=data, x="NumFunctions", y="ExecutionLocations", hue="Shared",
+    data=data, x="NumFunctions", y="ExecutionLocations", hue="Non-exclusive",
     jitter=0.1, log_scale=False, alpha=0.8,
     edgecolor="w", linewidth=0.5, order=unique(execution_location_mapping.values()),
   )
   #ax.set_xscale("log")
 
-  sns.move_legend(
-    ax, "lower left",
+  legend_ext(
+    ax, loc="lower left",
     bbox_to_anchor=(0, 1),
     ncol=2,
     title=None,
@@ -1298,7 +1380,8 @@ def plot_num_functions_per_execution_location(repos, out_dir):
   # ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   # ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/num_functions_per_execution_location.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/num_functions_per_execution_location.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/num_functions_per_execution_location.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_num_functions_per_trigger_type(repos, out_dir):
@@ -1320,12 +1403,12 @@ def plot_num_functions_per_trigger_type(repos, out_dir):
       trigger_types_list.append(k)
       num_functions_list.append(v)
 
-      shared_list.append("Shared" if len(num_functions_by_trigger_type) > 1 else "Exclusive")
+      shared_list.append("Non-exclusive" if len(num_functions_by_trigger_type) > 1 else "Exclusive")
 
   data = {
     "NumFunctions": num_functions_list,
     "InvocationTypes": trigger_types_list,
-    "Shared": shared_list,
+    "Non-exclusive": shared_list,
   }
 
   df = pd.DataFrame(data)
@@ -1335,14 +1418,14 @@ def plot_num_functions_per_trigger_type(repos, out_dir):
   # for Matplotlib version >= 1.5
   #plt.gca().set_prop_cycle(None)
   sns.stripplot(
-    data=data, x="NumFunctions", y="InvocationTypes", hue="Shared",
+    data=data, x="NumFunctions", y="InvocationTypes", hue="Non-exclusive",
     jitter=0.1, log_scale=False, alpha=0.8,
     edgecolor="w", linewidth=0.5, order=unique(trigger_type_mapping.values()),
   )
   #ax.set_xscale("log")
 
-  sns.move_legend(
-    ax, "lower left",
+  legend_ext(
+    ax, loc="lower left",
     bbox_to_anchor=(0, 1),
     ncol=2,
     title=None,
@@ -1366,7 +1449,8 @@ def plot_num_functions_per_trigger_type(repos, out_dir):
   # ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   # ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/num_functions_per_trigger_type.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/num_functions_per_trigger_type.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/num_functions_per_trigger_type.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_trigger_types_and_num_functions(repos, out_dir):
@@ -1415,7 +1499,8 @@ def plot_trigger_types_and_num_functions(repos, out_dir):
     #plt.xlabel("LoC")
     #plt.ylabel("Num Functions")
 
-    plt.savefig(f"{out_dir}/trigger_type_{trigger_type}_and_num_functions.png", transparent=True, bbox_inches='tight')
+    #plt.savefig(f"{out_dir}/trigger_type_{trigger_type}_and_num_functions.png", transparent=True, bbox_inches="tight")
+    plt.savefig(f"{out_dir}/trigger_type_{trigger_type}_and_num_functions.pdf", transparent=True, bbox_inches="tight")
     plt.close()
 
 def plot_execution_location_and_num_functions(repos, out_dir):
@@ -1464,7 +1549,8 @@ def plot_execution_location_and_num_functions(repos, out_dir):
     #plt.xlabel("LoC")
     #plt.ylabel("Num Functions")
 
-    plt.savefig(f"{out_dir}/execution_location_{execution_location}_and_num_functions.png", transparent=True, bbox_inches='tight')
+    #plt.savefig(f"{out_dir}/execution_location_{execution_location}_and_num_functions.png", transparent=True, bbox_inches="tight")
+    plt.savefig(f"{out_dir}/execution_location_{execution_location}_and_num_functions.pdf", transparent=True, bbox_inches="tight")
     plt.close()
 
 def plot_function_count_distribution(repos, num_bins, out_dir):
@@ -1484,14 +1570,14 @@ def plot_function_count_distribution(repos, num_bins, out_dir):
       function_count_distribution[num_bins-1] += 1  
 
   data = {
-    'NumFunctions': [x+1 for x in function_count_distribution.keys()],
-    'Probability': [x / num_applications for x in function_count_distribution.values()],
+    "NumFunctions": [x+1 for x in function_count_distribution.keys()],
+    "Probability": [x / num_applications for x in function_count_distribution.values()],
   }
 
   df = pd.DataFrame(data)
 
   fig, ax = plt.subplots(figsize=(10, 6))
-  sns.barplot(x='NumFunctions', y='Probability', data=df, ax=ax)
+  sns.barplot(x="NumFunctions", y="Probability", data=df, ax=ax)
 
   current_ticks = plt.xticks()[0]
   current_labels = [str(x+1) for x in range(num_bins)]
@@ -1499,13 +1585,14 @@ def plot_function_count_distribution(repos, num_bins, out_dir):
 
   plt.xticks(ticks=current_ticks, labels=current_labels)
 
-  plt.xlabel('Number of Functions')
-  plt.ylabel('Percentage of Applications')
+  plt.xlabel("Number of Functions")
+  plt.ylabel("Percentage of Applications")
 
   ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: f"{x*100:.0f}%"))
   ax.yaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/function_count_distribution.png", transparent=True,  bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/function_count_distribution.png", transparent=True,  bbox_inches="tight")
+  plt.savefig(f"{out_dir}/function_count_distribution.pdf", transparent=True,  bbox_inches="tight")
   plt.close()
 
 #################
@@ -1516,36 +1603,143 @@ def print_num_platforms_per_application(repos):
   total_num_files = 0
   total_num_functions = 0
   total_num_repositories = 0
+  num_repos = len(repos)
+  
+  num_repos_lt_100_files = 0
+  num_repos_lt_1000_files = 0
+  
+  num_repos_loc_between_200_and_10000 = 0
+  
+  num_repos_lteq_5_functions = 0
+  num_repos_lteq_1_functions = 0
+  num_repos_lteq_10_functions = 0
+  
+  total_loc = 0
+  min_loc = 10**9
+  max_loc = -10**9
+
+  total_js_loc = 0
+  min_js_loc = 10**9
+  max_js_loc = -10**9
+
+  num_repos_using_eis_event_trigger = 0
+  num_repos_using_shahrad_queue_trigger = 0
+
+  min_funs = 10**9
+  max_funs = -10**9
 
   num_platforms = {}
-  num_functions_by_platform = {}
-  num_repos_by_platform = {}
-
   num_frameworks = {}
+
+  num_functions_by_platform = {}
   num_functions_by_framework = {}
+  num_functions_by_framework_category = {}
+  num_functions_by_execution_location = {}
+  num_functions_by_trigger_type = {}
+
+  num_repos_by_platform = {}
   num_repos_by_framework = {}
+  num_repos_by_framework_category = {}
+  num_repos_by_execution_location = {}
+  num_repos_by_trigger_type = {}
+
+  num_repos_with_multiple_frameworks = 0
+  num_repos_with_multiple_frameworks_and_multiple_framework_categories = 0
+  num_repos_with_multiple_framework_categories = 0
+  num_repos_with_multiple_platforms = 0
+  num_repos_with_multiple_trigger_types = 0
+  num_repos_with_multiple_execution_locations = 0
 
   num_framework_combinations = {}
+  num_framework_category_combinations = {}
   num_platform_combinations = {}
   num_execution_location_combinations = {}
   num_trigger_type_combinations = {}
 
+  num_unknown_trigger_types = 0
+  num_unknown_trigger_types_frameworks = {}
+  num_unknown_trigger_types_using_deployment_framework = 0
+
+  num_unknown_trigger_types_per_app = {}
+  num_trigger_types_per_app = {}
+
+  num_azure_functions_with_runtime_framework = 0
+  num_aws_functions_with_runtime_framework = 0
+
+  num_azure_functions_with_deployment_framework = 0
+  num_aws_functions_with_deployment_framework = 0
+
   platforms = set()
   frameworks = set()
+  framework_categories = set()
+  languages = set()
+  execution_locations = set()
+  trigger_types = set()
 
   for repo in repos:
     total_num_repositories += 1
 
     repo_platforms = set()
     repo_frameworks = set()
+    repo_framework_categories = set()
     repo_execution_locations = set()
     repo_trigger_types = set()
 
     complexity = repo.get("Complexity", {})
     files = complexity.get("Files", [])
-    total_num_files += len(files)
-    
     functions = repo.get("Functions", [])
+
+    num_files = len(files)
+    num_functions = len(functions)
+
+    total_num_files += num_files
+
+    repo_loc = 0
+    repo_js_loc = 0
+    for file in files:
+      category  = file["Category"]
+      language = file["Language"]
+      loc = file["LOC"]
+
+      if category != "Source Code":
+        continue      
+
+      languages.add(language)
+
+      repo_loc += loc
+      if language == "JavaScript":
+        repo_js_loc += loc  
+
+    total_loc += repo_loc
+    if min_loc > repo_loc:
+      min_loc = repo_loc
+    if max_loc < repo_loc:
+      max_loc = repo_loc
+
+    total_js_loc += repo_js_loc
+    if min_js_loc > repo_js_loc:
+      min_js_loc = repo_js_loc
+    if max_js_loc < repo_js_loc:
+      max_js_loc = repo_js_loc
+
+    if repo_loc >= 200 and repo_loc <= 10_000:
+      num_repos_loc_between_200_and_10000 += 1
+
+    if num_files <= 100:
+      num_repos_lt_100_files += 1
+
+    if num_files <= 1000:
+      num_repos_lt_1000_files += 1
+
+    if num_functions <= 1:
+      num_repos_lteq_1_functions += 1
+
+    if num_functions <= 5:
+      num_repos_lteq_5_functions += 1
+
+    if num_functions <= 10:
+      num_repos_lteq_10_functions += 1
+    
     for function in functions:
       total_num_functions += 1
 
@@ -1553,7 +1747,10 @@ def print_num_platforms_per_application(repos):
       mapped_platform = platform_mapping.get(platform, platform)
 
       framework = function.get("Framework", "")
-      mapped_framework = framework_category_mapping.get(framework, framework)
+      mapped_framework = framework_mapping.get(framework, framework)
+
+      framework_category = function.get("Framework", "")
+      mapped_framework_category = framework_category_mapping.get(framework, framework)
 
       trigger_type = function.get("InvocationType", "")
       mapped_trigger_type = trigger_type_mapping.get(trigger_type,  trigger_type)
@@ -1561,13 +1758,39 @@ def print_num_platforms_per_application(repos):
       execution_location = function.get("Location", "")
       mapped_execution_location = execution_location_mapping.get(execution_location, execution_location)
 
+      if "runtime" in mapped_framework_category:
+        if mapped_platform == "AWS":
+          num_aws_functions_with_runtime_framework += 1
+        if mapped_platform == "Azure":
+          num_azure_functions_with_runtime_framework += 1
+
+      if "deployment" in mapped_framework_category:
+        if mapped_platform == "AWS":
+          num_aws_functions_with_deployment_framework += 1
+        if mapped_platform == "Azure":
+          num_azure_functions_with_deployment_framework += 1
+
       repo_platforms.add(mapped_platform)
       repo_frameworks.add(mapped_framework)
+      repo_framework_categories.add(mapped_framework_category)
       repo_trigger_types.add(mapped_trigger_type)
       repo_execution_locations.add(mapped_execution_location)
       
       platforms.add(mapped_platform)
       frameworks.add(mapped_framework)
+      framework_categories.add(mapped_framework_category)
+      execution_locations.add(mapped_execution_location)
+      trigger_types.add(mapped_trigger_type)
+
+      if mapped_trigger_type == "Unknown":
+        num_unknown_trigger_types += 1
+
+        if mapped_framework not in num_unknown_trigger_types_frameworks:
+          num_unknown_trigger_types_frameworks[mapped_framework] = 0
+        num_unknown_trigger_types_frameworks[mapped_framework] += 1
+
+        if mapped_framework_category in ["Platform-specific deployment", "Platform-agnostic deployment"]:
+          num_unknown_trigger_types_using_deployment_framework += 1
 
       if mapped_platform not in num_functions_by_platform:
         num_functions_by_platform[mapped_platform] = 0
@@ -1575,11 +1798,66 @@ def print_num_platforms_per_application(repos):
       if mapped_framework not in num_functions_by_framework:
         num_functions_by_framework[mapped_framework] = 0
 
+      if mapped_framework_category not in num_functions_by_framework_category:
+        num_functions_by_framework_category[mapped_framework_category] = 0
+
+      if mapped_trigger_type not in num_functions_by_trigger_type:
+        num_functions_by_trigger_type[mapped_trigger_type] = 0
+
+      if mapped_execution_location not in num_functions_by_execution_location:
+        num_functions_by_execution_location[mapped_execution_location] = 0
+
       num_functions_by_platform[mapped_platform] += 1
       num_functions_by_framework[mapped_framework] += 1
+      num_functions_by_framework_category[mapped_framework_category] += 1
+      num_functions_by_execution_location[mapped_execution_location] += 1
+      num_functions_by_trigger_type[mapped_trigger_type] += 1
+
+    if "Event" in repo_trigger_types or "Queue" in repo_trigger_types or "Topic" in repo_trigger_types:
+      num_repos_using_eis_event_trigger += 1
+
+    if "Queue" in repo_trigger_types or "Topic" in repo_trigger_types:
+      num_repos_using_shahrad_queue_trigger += 1
+
+    repo_num_functions = len(functions)
+    if repo_num_functions < min_funs:
+      min_funs = repo_num_functions
+    if repo_num_functions > max_funs:
+      max_funs = repo_num_functions
 
     repo_num_platforms = len(repo_platforms)
     repo_num_frameworks = len(repo_frameworks)
+    repo_num_framework_categories = len(repo_framework_categories)
+    repo_num_execution_locations = len(repo_execution_locations)
+    repo_num_trigger_types = len(repo_trigger_types)
+
+    num_known_trigger_types = len([x for x in list(repo_trigger_types) if x != "Unknown"])
+
+    if num_known_trigger_types not in num_unknown_trigger_types_per_app:
+      num_unknown_trigger_types_per_app[num_known_trigger_types] = 0
+    num_unknown_trigger_types_per_app[num_known_trigger_types] += 1
+
+    if repo_num_trigger_types not in num_trigger_types_per_app:
+      num_trigger_types_per_app[repo_num_trigger_types] = 0
+    num_trigger_types_per_app[repo_num_trigger_types] += 1
+
+    if repo_num_platforms > 1:
+      num_repos_with_multiple_platforms += 1
+
+    if repo_num_frameworks > 1:
+      num_repos_with_multiple_frameworks += 1
+
+      if repo_num_framework_categories > 1:
+        num_repos_with_multiple_frameworks_and_multiple_framework_categories  += 1
+
+    if repo_num_framework_categories > 1:
+      num_repos_with_multiple_framework_categories += 1
+
+    if repo_num_execution_locations > 1:
+      num_repos_with_multiple_execution_locations += 1
+
+    if repo_num_trigger_types > 1:
+      num_repos_with_multiple_trigger_types += 1
 
     if repo_num_platforms not in num_platforms:
       num_platforms[repo_num_platforms] = 0
@@ -1588,6 +1866,16 @@ def print_num_platforms_per_application(repos):
     if repo_num_frameworks not in num_frameworks:
       num_frameworks[repo_num_frameworks] = 0
     num_frameworks[repo_num_frameworks] += 1
+
+    for repo_execution_location in repo_execution_locations:
+      if repo_execution_location not in num_repos_by_execution_location:
+        num_repos_by_execution_location[repo_execution_location] = 0
+      num_repos_by_execution_location[repo_execution_location] += 1
+
+    for repo_trigger_type in repo_trigger_types:
+      if repo_trigger_type not in num_repos_by_trigger_type:
+        num_repos_by_trigger_type[repo_trigger_type] = 0
+      num_repos_by_trigger_type[repo_trigger_type] += 1
 
     for repo_platform in repo_platforms:
       if repo_platform not in num_repos_by_platform:
@@ -1598,6 +1886,11 @@ def print_num_platforms_per_application(repos):
       if repo_framework not in num_repos_by_framework:
         num_repos_by_framework[repo_framework] = 0
       num_repos_by_framework[repo_framework] += 1
+
+    for repo_framework_category in repo_framework_categories:
+      if repo_framework_category not in num_repos_by_framework_category:
+        num_repos_by_framework_category[repo_framework_category] = 0
+      num_repos_by_framework_category[repo_framework_category] += 1
 
     if len(repo_platforms) > 0:
       platform_combination = ";".join(sorted(list(repo_platforms)))
@@ -1610,6 +1903,12 @@ def print_num_platforms_per_application(repos):
       if framework_combination not in num_framework_combinations:
         num_framework_combinations[framework_combination] = 0
       num_framework_combinations[framework_combination] += 1
+
+    if len(repo_framework_categories) > 0:
+      framework_category_combination = ";".join(sorted(list(repo_framework_categories)))
+      if framework_category_combination not in num_framework_category_combinations:
+        num_framework_category_combinations[framework_category_combination] = 0
+      num_framework_category_combinations[framework_category_combination] += 1
 
     if len(repo_execution_locations) > 0:
       execution_location_combination = ";".join(sorted(list(repo_execution_locations)))
@@ -1631,12 +1930,58 @@ def print_num_platforms_per_application(repos):
   for framework in frameworks:
     avg_num_functions_by_framework[framework] = num_functions_by_framework.get(framework, 0) / num_repos_by_framework.get(framework, 1)
 
+  avg_num_functions_by_framework_category = {}
+  for framework_category in framework_categories:
+    avg_num_functions_by_framework_category[framework_category] = num_functions_by_framework_category.get(framework_category, 0) / num_repos_by_framework_category.get(framework_category, 1)
+
+  avg_num_functions_by_trigger_type = {}
+  for trigger_type in trigger_types:
+    avg_num_functions_by_trigger_type[trigger_type] = num_functions_by_trigger_type.get(trigger_type, 0) / num_repos_by_trigger_type.get(trigger_type, 1)
+
+  avg_num_functions_by_execution_location = {}
+  for execution_location in execution_locations:
+    avg_num_functions_by_execution_location[execution_location] = num_functions_by_execution_location.get(execution_location, 0) / num_repos_by_execution_location.get(execution_location, 1)
+
   print("#" * 80)
   print("General")
   print("#" * 80)
   print(f"Num Files: {total_num_files}")
+  print(f"Min loc: {min_loc}")
+  print(f"Max loc: {max_loc}")
+  print(f"Avg loc: {total_loc / num_repos}")
+  print(f"Min js loc: {min_js_loc}")
+  print(f"Max js loc: {max_js_loc}")
+  print(f"Avg js loc: {total_js_loc / num_repos}")
   print(f"Num Functions: {total_num_functions}")
+  print(f"Min num functions: {min_funs}")
+  print(f"Max num functions: {max_funs}")
+  print(f"Avg num functions: {total_num_functions / num_repos}")
   print(f"Num Repositories: {total_num_repositories}")
+  print(f"Num Repos with <= 100 files: {num_repos_lt_100_files}")
+  print(f"Num Repos with <= 1000 files: {num_repos_lt_1000_files}")
+  print(f"Num repos with >= 200 and <= 10000 lines of code: {num_repos_loc_between_200_and_10000}")
+  print(f"Num repos with <= 1 functions: {num_repos_lteq_1_functions}")
+  print(f"Num repos with <= 5 functions: {num_repos_lteq_5_functions}")
+  print(f"Num repos with <= 10 functions: {num_repos_lteq_10_functions}")
+  print(f"Num repos with multiple frameworks: {num_repos_with_multiple_frameworks}")
+  print(f"Num repos with multiple framework categories: {num_repos_with_multiple_framework_categories}")
+  print(f"Num repos with multiple frameworks and multiple framework categories: {num_repos_with_multiple_frameworks_and_multiple_framework_categories}")
+  print(f"Num repos with multiple platforms: {num_repos_with_multiple_platforms}")
+  print(f"Num repos with multiple execution locations: {num_repos_with_multiple_execution_locations}")
+  print(f"Num repos with multiple trigger types: {num_repos_with_multiple_trigger_types}")
+  print(f"Num repos using eis event trigger: {num_repos_using_eis_event_trigger}")
+  print(f"Num repos using shahrad queue trigger: {num_repos_using_shahrad_queue_trigger}")
+  print(f"Num unknown triggers: {num_unknown_trigger_types}")
+  print(f"Num unknown triggers using deployment framework: {num_unknown_trigger_types_using_deployment_framework}")
+  print(f"Num unknown triggers frameworks: {num_unknown_trigger_types_frameworks}")
+  print(f"Num trigger types per app: {num_trigger_types_per_app}")
+  print(f"Num unknown trigger types per app: {num_unknown_trigger_types_per_app}")
+  print(f"Num aws functions with runtime framework: {num_aws_functions_with_runtime_framework}")
+  print(f"Num azure functions with runtime framework: {num_azure_functions_with_runtime_framework}")
+  print(f"Num aws functions with deployment framework: {num_aws_functions_with_deployment_framework}")
+  print(f"Num azure functions with deployment framework: {num_azure_functions_with_deployment_framework}")
+  print(f"Num languages: {len(languages)}")
+  print(f"Languages: {languages}")
   print("#" * 80)
   print("")
 
@@ -1665,7 +2010,7 @@ def print_num_platforms_per_application(repos):
   print("")
 
   print("#" * 80)
-  print("Avg Num Functions per Framework Category")
+  print("Avg Num Functions per Framework")
   print("#" * 80)
   for k, v in sorted(avg_num_functions_by_framework.items(), key=lambda x: x[1]):
     print(f"{k} = {v} ({num_functions_by_framework[k]} Functions | {num_repos_by_framework[k]} Applications)")
@@ -1673,9 +2018,41 @@ def print_num_platforms_per_application(repos):
   print("")
 
   print("#" * 80)
+  print("Avg Num Functions per Framework Category")
+  print("#" * 80)
+  for k, v in sorted(avg_num_functions_by_framework_category.items(), key=lambda x: x[1]):
+    print(f"{k} = {v} ({num_functions_by_framework_category[k]} Functions | {num_repos_by_framework_category[k]} Applications)")
+  print("#" * 80)
+  print("")
+
+  print("#" * 80)
+  print("Avg Num Functions per Trigger Type")
+  print("#" * 80)
+  for k, v in sorted(avg_num_functions_by_trigger_type.items(), key=lambda x: x[1]):
+    print(f"{k} = {v} ({num_functions_by_trigger_type[k]} Functions | {num_repos_by_trigger_type[k]} Applications)")
+  print("#" * 80)
+  print("")
+
+  print("#" * 80)
+  print("Avg Num Functions per Execution Location")
+  print("#" * 80)
+  for k, v in sorted(avg_num_functions_by_execution_location.items(), key=lambda x: x[1]):
+    print(f"{k} = {v} ({num_functions_by_execution_location[k]} Functions | {num_repos_by_execution_location[k]} Applications)")
+  print("#" * 80)
+  print("")
+
+  print("#" * 80)
   print("Framework Combinations")
   print("#" * 80)
   for k, v in sorted(num_framework_combinations.items(), key=lambda x: x[1]):
+    print(f"{k} = {v}")
+  print("#" * 80)
+  print("")
+
+  print("#" * 80)
+  print("Framework Category Combinations")
+  print("#" * 80)
+  for k, v in sorted(num_framework_category_combinations.items(), key=lambda x: x[1]):
     print(f"{k} = {v}")
   print("#" * 80)
   print("")
@@ -1727,8 +2104,8 @@ def plot_platforms_per_function(repos, out_dir):
   }
 
   df = pd.DataFrame(data)
-  df['Platforms'] = pd.Categorical(df['Platforms'], categories=unique(platform_mapping.values()), ordered=True)
-  df = df.sort_values('Platforms')
+  df["Platforms"] = pd.Categorical(df["Platforms"], categories=unique(platform_mapping.values()), ordered=True)
+  df = df.sort_values("Platforms")
 
   fig, ax = plt.subplots(figsize=(10, 6))
   sns.barplot(x="Percentage", y="Platforms", data=df, orient="h", ax=ax)
@@ -1746,7 +2123,8 @@ def plot_platforms_per_function(repos, out_dir):
   ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/platforms_per_function.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/platforms_per_function.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/platforms_per_function.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_platforms_per_application(repos, out_dir):
@@ -1775,8 +2153,8 @@ def plot_platforms_per_application(repos, out_dir):
   }
 
   df = pd.DataFrame(data)
-  df['Platforms'] = pd.Categorical(df['Platforms'], categories=unique(platform_mapping.values()), ordered=True)
-  df = df.sort_values('Platforms')
+  df["Platforms"] = pd.Categorical(df["Platforms"], categories=unique(platform_mapping.values()), ordered=True)
+  df = df.sort_values("Platforms")
 
   fig, ax = plt.subplots(figsize=(10, 6))
   sns.barplot(x="Percentage", y="Platforms", data=df, orient="h", ax=ax)
@@ -1794,7 +2172,8 @@ def plot_platforms_per_application(repos, out_dir):
   ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/platforms_per_application.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/platforms_per_application.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/platforms_per_application.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_platforms_per_application_and_function(repos, out_dir):
@@ -1855,8 +2234,8 @@ def plot_platforms_per_application_and_function(repos, out_dir):
   fig, ax = plt.subplots(figsize=(6, 3))
   sns.barplot(x="Percentage", y="Platforms", hue="Hue", order=order, hue_order=hue_order, data=df, orient="h", ax=ax)
 
-  sns.move_legend(
-    ax, "lower left",
+  legend_ext(
+    ax, loc="lower left",
     bbox_to_anchor=(0, 1),
     ncol=2,
     title=None,
@@ -1882,7 +2261,8 @@ def plot_platforms_per_application_and_function(repos, out_dir):
   ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/platforms_per_application_and_function.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/platforms_per_application_and_function.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/platforms_per_application_and_function.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_platforms_matrix(repos, out_dir):
@@ -1932,8 +2312,8 @@ def plot_platforms_matrix(repos, out_dir):
   df = df.dropna(axis="columns", how="all")
   df = df.dropna(axis="rows", how="all")
 
-  mask = df.to_numpy()
-  mask = np.arange(mask.shape[0])[:,None] < np.arange(mask.shape[1])
+  # mask = df.to_numpy()
+  # mask = np.arange(mask.shape[0])[:,None] < np.arange(mask.shape[1])
 
   steps = [1, 2, 5, 10]
   for step in steps:
@@ -1948,7 +2328,8 @@ def plot_platforms_matrix(repos, out_dir):
 
   fig, ax = plt.subplots(figsize=(6, 3))
 
-  sns.heatmap(df, annot=True, fmt=".0f", cmap="Blues", cbar=False, square=True, mask=mask, vmin=0, vmax=max(num_repositories), cbar_kws={"ticks": ticks})
+  # sns.heatmap(df, annot=True, fmt=".0f", cmap="Blues", cbar=False, square=True, mask=mask, vmin=0, vmax=max(num_repositories), cbar_kws={"ticks": ticks})
+  sns.heatmap(df, annot=True, fmt=".0f", cmap="Blues", cbar=False, square=True, vmin=0, vmax=max(num_repositories), cbar_kws={"ticks": ticks})
 
   ax.spines[:].set_visible(True)
 
@@ -1956,13 +2337,16 @@ def plot_platforms_matrix(repos, out_dir):
 
   #plt.xlim(0, max(df["Percentage"]) * 1.1)
 
+  plt.yticks(rotation=0, ha="right")
+
   plt.xlabel("")
   plt.ylabel("")
 
   # ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   # ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/platforms_matrix.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/platforms_matrix.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/platforms_matrix.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 # def plot_platforms_per_framework(repos, max_per_bar, out_dir):
@@ -2039,19 +2423,15 @@ def plot_platforms_per_execution_location(repos, max_per_bar, out_dir):
     for execution_location in execution_locations_count.keys():
       offset_per_execution_location[execution_location] -= execution_locations_count[execution_location] / num_functions_per_execution_location[execution_location]
 
-  handles, labels = ax.get_legend_handles_labels()
-  ax.legend(handles[::-1], labels[::-1], title='Line', loc='upper left')
-  # sns.move_legend(ax, "upper left", bbox_to_anchor=(0, -0.3))
-
-  sns.move_legend(
-    ax, "lower left",
+  legend_ext(
+    ax, loc="lower left", reverse=True,
     bbox_to_anchor=(0, 1), ncol=3,
     title=None, frameon=False,
   )
 
   ax.xaxis.set_major_locator(ticker.MultipleLocator(0.2))
 
-  plt.xlabel("Distribution [%] of Function Platforms")
+  plt.xlabel("Distribution of Function Platforms [%]")
   plt.ylabel("Execution Location")
 
   plt.xlim(0, 1)
@@ -2060,7 +2440,8 @@ def plot_platforms_per_execution_location(repos, max_per_bar, out_dir):
   ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
   # plt.show()
-  plt.savefig(f"{out_dir}/platforms_per_execution_location.png", transparent=True, bbox_inches="tight", pad_inches=1)
+  #plt.savefig(f"{out_dir}/platforms_per_execution_location.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/platforms_per_execution_location.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_platforms_per_trigger_type(repos, max_per_bar, out_dir):
@@ -2134,19 +2515,15 @@ def plot_platforms_per_trigger_type(repos, max_per_bar, out_dir):
     for trigger_type in trigger_types_count.keys():
       offset_per_trigger_type[trigger_type] -= trigger_types_count[trigger_type] / num_functions_per_trigger_type[trigger_type]
 
-  handles, labels = ax.get_legend_handles_labels()
-  ax.legend(handles[::-1], labels[::-1], title='Line', loc='upper left')
-  # sns.move_legend(ax, "upper left", bbox_to_anchor=(0, -0.3))
-
-  sns.move_legend(
-    ax, "lower left",
+  legend_ext(
+    ax, loc="lower left", reverse=True,
     bbox_to_anchor=(0, 1), ncol=3,
     title=None, frameon=False,
   )
 
   ax.xaxis.set_major_locator(ticker.MultipleLocator(0.2))
 
-  plt.xlabel("Distribution [%] of Function Platforms")
+  plt.xlabel("Distribution of Function Platforms [%]")
   plt.ylabel("Trigger Type")
 
   plt.xlim(0, 1)
@@ -2155,7 +2532,8 @@ def plot_platforms_per_trigger_type(repos, max_per_bar, out_dir):
   ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
   # plt.show()
-  plt.savefig(f"{out_dir}/platforms_per_trigger_type.png", transparent=True, bbox_inches="tight", pad_inches=1)
+  #plt.savefig(f"{out_dir}/platforms_per_trigger_type.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/platforms_per_trigger_type.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 ##################
@@ -2185,8 +2563,8 @@ def plot_frameworks_per_function(repos, out_dir):
   }
 
   df = pd.DataFrame(data)
-  df['Frameworks'] = pd.Categorical(df['Frameworks'], categories=unique(framework_mapping.values()), ordered=True)
-  df = df.sort_values('Frameworks')
+  df["Frameworks"] = pd.Categorical(df["Frameworks"], categories=unique(framework_mapping.values()), ordered=True)
+  df = df.sort_values("Frameworks")
 
   fig, ax = plt.subplots(figsize=(10, 6))
   sns.barplot(x="Percentage", y="Frameworks", data=df, orient="h", ax=ax)
@@ -2194,7 +2572,7 @@ def plot_frameworks_per_function(repos, out_dir):
   ax.xaxis.set_major_locator(ticker.MultipleLocator(0.05))
 
   for index, value in enumerate(df["Percentage"]):
-    plt.text(value + 0.0025, index, f'{value:.2%}', va="center")
+    plt.text(value + 0.0025, index, f"{value:.2%}", va="center")
 
   plt.xlim(0, max(df["Percentage"]) * 1.1)
 
@@ -2204,7 +2582,8 @@ def plot_frameworks_per_function(repos, out_dir):
   ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/frameworks_per_function.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/frameworks_per_function.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/frameworks_per_function.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_frameworks_per_application(repos, out_dir):
@@ -2233,8 +2612,8 @@ def plot_frameworks_per_application(repos, out_dir):
   }
 
   df = pd.DataFrame(data)
-  df['Frameworks'] = pd.Categorical(df['Frameworks'], categories=unique(framework_mapping.values()), ordered=True)
-  df = df.sort_values('Frameworks')
+  df["Frameworks"] = pd.Categorical(df["Frameworks"], categories=unique(framework_mapping.values()), ordered=True)
+  df = df.sort_values("Frameworks")
 
   fig, ax = plt.subplots(figsize=(10, 6))
   sns.barplot(x="Percentage", y="Frameworks", data=df, orient="h", ax=ax)
@@ -2242,7 +2621,7 @@ def plot_frameworks_per_application(repos, out_dir):
   ax.xaxis.set_major_locator(ticker.MultipleLocator(0.05))
 
   for index, value in enumerate(df["Percentage"]):
-    plt.text(value + 0.0025, index, f'{value:.2%}', va="center")
+    plt.text(value + 0.0025, index, f"{value:.2%}", va="center")
 
   plt.xlim(0, max(df["Percentage"]) * 1.1)
 
@@ -2252,7 +2631,8 @@ def plot_frameworks_per_application(repos, out_dir):
   ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/frameworks_per_application.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/frameworks_per_application.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/frameworks_per_application.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_frameworks_per_application_and_function(repos, out_dir):
@@ -2313,8 +2693,8 @@ def plot_frameworks_per_application_and_function(repos, out_dir):
   fig, ax = plt.subplots(figsize=(10, 6))
   sns.barplot(x="Percentage", y="Frameworks", hue="Hue", order=order, hue_order=hue_order, data=df, orient="h", ax=ax)
 
-  sns.move_legend(
-    ax, "lower left",
+  legend_ext(
+    ax, loc="lower left",
     bbox_to_anchor=(0, 1),
     ncol=2,
     title=None,
@@ -2340,7 +2720,8 @@ def plot_frameworks_per_application_and_function(repos, out_dir):
   ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/frameworks_per_application_and_function.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/frameworks_per_application_and_function.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/frameworks_per_application_and_function.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_framework_categories_per_application_and_function(repos, out_dir):
@@ -2401,8 +2782,8 @@ def plot_framework_categories_per_application_and_function(repos, out_dir):
   fig, ax = plt.subplots(figsize=(6, 3))
   sns.barplot(x="Percentage", y="Categories", hue="Hue", order=order, hue_order=hue_order, data=df, orient="h", ax=ax)
 
-  sns.move_legend(
-    ax, "lower left",
+  legend_ext(
+    ax, loc="lower left",
     bbox_to_anchor=(0, 1),
     ncol=2,
     title=None,
@@ -2427,7 +2808,8 @@ def plot_framework_categories_per_application_and_function(repos, out_dir):
   ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/framework_categories_per_application_and_function.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/framework_categories_per_application_and_function.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/framework_categories_per_application_and_function.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_frameworks_matrix(repos, out_dir):
@@ -2439,7 +2821,7 @@ def plot_frameworks_matrix(repos, out_dir):
     functions = repo.get("Functions", [])
     for function in functions:
       framework = function["Framework"]
-      mapped_framework = framework_mapping.get(framework, framework)
+      mapped_framework = compact_framework_mapping.get(framework, framework)
 
       repo_frameworks.add(mapped_framework)
 
@@ -2447,7 +2829,7 @@ def plot_frameworks_matrix(repos, out_dir):
     repo_frameworks_combinations = itertools.combinations(repo_frameworks, 2)
 
     for left, right in repo_frameworks_combinations:
-      key = ";".join(sort_respecting([left, right], unique(framework_mapping.values())))
+      key = ";".join(sort_respecting([left, right], unique(compact_framework_mapping.values())))
 
       if key not in num_framework_combinations:
         num_framework_combinations[key] = 0
@@ -2472,14 +2854,17 @@ def plot_frameworks_matrix(repos, out_dir):
 
   df = pd.DataFrame(data)
   df = df.pivot(index="Row", columns="Column", values="Value")
-  df = df.reindex(index=unique(framework_mapping.values()), columns=unique(framework_mapping.values()))
-  df = df.drop([unique(framework_mapping.values())[0]])
-  df = df.drop(columns=[unique(framework_mapping.values())[-1]])
+  df = df.reindex(index=unique(compact_framework_mapping.values()), columns=unique(compact_framework_mapping.values()))
+  df = df.drop([unique(compact_framework_mapping.values())[0]])
+  df = df.drop(columns=[unique(compact_framework_mapping.values())[-1]])
   df = df.dropna(axis="columns", how="all")
   df = df.dropna(axis="rows", how="all")
+  df = df.transpose()
+  df = df.iloc[::-1]
+  df = df.iloc[:, ::-1]
 
-  mask = df.to_numpy()
-  mask = np.arange(mask.shape[0])[:,None] < np.arange(mask.shape[1])
+  #mask = df.to_numpy()
+  #mask = np.arange(mask.shape[0])[:,None] < np.arange(mask.shape[1])
 
   steps = [1, 2, 5, 10]
   for step in steps:
@@ -2493,12 +2878,12 @@ def plot_frameworks_matrix(repos, out_dir):
     ticks.append(tick)
 
   fig, ax = plt.subplots(figsize=(6, 3))
-
-  sns.heatmap(df, annot=True, fmt=".0f", cmap="Blues", cbar=False, square=True, mask=mask, vmin=0, vmax=max(num_repositories), cbar_kws={"ticks": ticks})
+  # sns.heatmap(df, annot=True, fmt=".0f", cmap="Blues", cbar=False, square=True, mask=mask, vmin=0, vmax=max(num_repositories), cbar_kws={"ticks": ticks})
+  sns.heatmap(df, annot=True, fmt=".0f", cmap="Blues", cbar=False, square=True, vmin=0, vmax=max(num_repositories), cbar_kws={"ticks": ticks})
 
   ax.spines[:].set_visible(True)
 
-  plt.xticks(rotation=45, ha='right')
+  plt.xticks(rotation=45, ha="right")
 
   #ax.xaxis.set_major_locator(ticker.MultipleLocator(0.05))
 
@@ -2510,7 +2895,8 @@ def plot_frameworks_matrix(repos, out_dir):
   # ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   # ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/frameworks_matrix.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/frameworks_matrix.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/frameworks_matrix.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_framework_categories_matrix(repos, out_dir):
@@ -2522,7 +2908,7 @@ def plot_framework_categories_matrix(repos, out_dir):
     functions = repo.get("Functions", [])
     for function in functions:
       framework = function["Framework"]
-      mapped_framework_categories = framework_category_mapping.get(framework, framework)
+      mapped_framework_categories = compact_framework_category_mapping.get(framework, framework)
 
       repo_framework_categoriess.add(mapped_framework_categories)
 
@@ -2530,7 +2916,7 @@ def plot_framework_categories_matrix(repos, out_dir):
     repo_framework_categoriess_combinations = itertools.combinations(repo_framework_categoriess, 2)
 
     for left, right in repo_framework_categoriess_combinations:
-      key = ";".join(sort_respecting([left, right], unique(framework_category_mapping.values())))
+      key = ";".join(sort_respecting([left, right], unique(compact_framework_category_mapping.values())))
 
       if key not in num_framework_categories_combinations:
         num_framework_categories_combinations[key] = 0
@@ -2555,9 +2941,9 @@ def plot_framework_categories_matrix(repos, out_dir):
 
   df = pd.DataFrame(data)
   df = df.pivot(index="Row", columns="Column", values="Value")
-  df = df.reindex(index=unique(framework_category_mapping.values()), columns=unique(framework_category_mapping.values()))
-  df = df.drop([unique(framework_category_mapping.values())[0]])
-  df = df.drop(columns=[unique(framework_category_mapping.values())[-1]])
+  df = df.reindex(index=unique(compact_framework_category_mapping.values()), columns=unique(compact_framework_category_mapping.values()))
+  df = df.drop([unique(compact_framework_category_mapping.values())[0]])
+  df = df.drop(columns=[unique(compact_framework_category_mapping.values())[-1]])
   df = df.dropna(axis="columns", how="all")
   df = df.dropna(axis="rows", how="all")
 
@@ -2577,7 +2963,8 @@ def plot_framework_categories_matrix(repos, out_dir):
 
   fig, ax = plt.subplots(figsize=(6, 3))
 
-  sns.heatmap(df, annot=True, fmt=".0f", cmap="Blues", cbar=False, square=True, mask=mask, vmin=0, vmax=max(num_repositories), cbar_kws={"ticks": ticks})
+  # sns.heatmap(df, annot=True, fmt=".0f", cmap="Blues", cbar=False, square=True, mask=mask, vmin=0, vmax=max(num_repositories), cbar_kws={"ticks": ticks})
+  sns.heatmap(df, annot=True, fmt=".0f", cmap="Blues", cbar=False, square=True, vmin=0, vmax=max(num_repositories), cbar_kws={"ticks": ticks})
 
   ax.spines[:].set_visible(True)
 
@@ -2591,7 +2978,8 @@ def plot_framework_categories_matrix(repos, out_dir):
   # ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   # ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/framework_categories_matrix.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/framework_categories_matrix.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/framework_categories_matrix.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 # def plot_frameworks_per_platform(repos, max_per_bar, out_dir):
@@ -2683,12 +3071,8 @@ def plot_frameworks_per_trigger_type(repos, max_per_bar, out_dir):
     for trigger_type in trigger_types_count.keys():
       offset_per_trigger_type[trigger_type] -= trigger_types_count[trigger_type] / num_functions_per_trigger_type[trigger_type]
 
-  handles, labels = ax.get_legend_handles_labels()
-  ax.legend(handles[::-1], labels[::-1], title='Line', loc='upper left')
-  # sns.move_legend(ax, "upper left", bbox_to_anchor=(0, -0.3))
-
-  sns.move_legend(
-    ax, "lower left",
+  legend_ext(
+    ax, loc="lower left", reverse=True,
     bbox_to_anchor=(0, 1),
     ncol=3,
     title=None, frameon=False,
@@ -2705,7 +3089,8 @@ def plot_frameworks_per_trigger_type(repos, max_per_bar, out_dir):
   ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
   # plt.show()
-  plt.savefig(f"{out_dir}/frameworks_per_trigger_type.png", transparent=True, bbox_inches="tight", pad_inches=1)
+  #plt.savefig(f"{out_dir}/frameworks_per_trigger_type.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/frameworks_per_trigger_type.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_frameworks_per_execution_location(repos, max_per_bar, out_dir):
@@ -2779,19 +3164,15 @@ def plot_frameworks_per_execution_location(repos, max_per_bar, out_dir):
     for execution_location in execution_locations_count.keys():
       offset_per_execution_location[execution_location] -= execution_locations_count[execution_location] / num_functions_per_execution_location[execution_location]
 
-  handles, labels = ax.get_legend_handles_labels()
-  ax.legend(handles[::-1], labels[::-1], title='Line', loc='upper left')
-  # sns.move_legend(ax, "upper left", bbox_to_anchor=(0, -0.3))
-
-  sns.move_legend(
-    ax, "lower left",
+  legend_ext(
+    ax, loc="lower left", reverse=True,
     bbox_to_anchor=(0, 1), ncol=3,
     title=None, frameon=False,
   )
 
   ax.xaxis.set_major_locator(ticker.MultipleLocator(0.2))
 
-  plt.xlabel("Distribution [%] of Function Frameworks by Category")
+  plt.xlabel("Distribution of Function Frameworks by Category [%]")
   plt.ylabel("Execution Locations")
 
   plt.xlim(0, 1)
@@ -2800,7 +3181,8 @@ def plot_frameworks_per_execution_location(repos, max_per_bar, out_dir):
   ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
   # plt.show()
-  plt.savefig(f"{out_dir}/frameworks_per_execution_location.png", transparent=True, bbox_inches="tight", pad_inches=1)
+  #plt.savefig(f"{out_dir}/frameworks_per_execution_location.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/frameworks_per_execution_location.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 #####################
@@ -2830,8 +3212,8 @@ def plot_trigger_types_per_function(repos, out_dir):
   }
 
   df = pd.DataFrame(data)
-  df['TriggerTypes'] = pd.Categorical(df['TriggerTypes'], categories=unique(trigger_type_mapping.values()), ordered=True)
-  df = df.sort_values('TriggerTypes')
+  df["TriggerTypes"] = pd.Categorical(df["TriggerTypes"], categories=unique(trigger_type_mapping.values()), ordered=True)
+  df = df.sort_values("TriggerTypes")
 
   fig, ax = plt.subplots(figsize=(10, 6))
   sns.barplot(x="Percentage", y="TriggerTypes", data=df, orient="h", ax=ax)
@@ -2839,7 +3221,7 @@ def plot_trigger_types_per_function(repos, out_dir):
   ax.xaxis.set_major_locator(ticker.MultipleLocator(0.05))
 
   for index, value in enumerate(df["Percentage"]):
-    plt.text(value + 0.0025, index, f'{value:.2%}', va="center")
+    plt.text(value + 0.0025, index, f"{value:.2%}", va="center")
 
   plt.xlim(0, max(df["Percentage"]) * 1.1)
 
@@ -2849,7 +3231,8 @@ def plot_trigger_types_per_function(repos, out_dir):
   ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/trigger_types_per_function.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/trigger_types_per_function.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/trigger_types_per_function.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_trigger_types_per_application(repos, out_dir):
@@ -2877,8 +3260,8 @@ def plot_trigger_types_per_application(repos, out_dir):
   }
 
   df = pd.DataFrame(data)
-  df['TriggerTypes'] = pd.Categorical(df['TriggerTypes'], categories=unique(trigger_type_mapping.values()), ordered=True)
-  df = df.sort_values('TriggerTypes')
+  df["TriggerTypes"] = pd.Categorical(df["TriggerTypes"], categories=unique(trigger_type_mapping.values()), ordered=True)
+  df = df.sort_values("TriggerTypes")
 
   fig, ax = plt.subplots(figsize=(10, 6))
   sns.barplot(x="Percentage", y="TriggerTypes", data=df, orient="h", ax=ax)
@@ -2886,7 +3269,7 @@ def plot_trigger_types_per_application(repos, out_dir):
   ax.xaxis.set_major_locator(ticker.MultipleLocator(0.05))
 
   for index, value in enumerate(df["Percentage"]):
-    plt.text(value + 0.0025, index, f'{value:.2%}', va="center")
+    plt.text(value + 0.0025, index, f"{value:.2%}", va="center")
 
   plt.xlim(0, max(df["Percentage"]) * 1.1)
 
@@ -2896,7 +3279,8 @@ def plot_trigger_types_per_application(repos, out_dir):
   ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/trigger_types_per_application.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/trigger_types_per_application.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/trigger_types_per_application.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_trigger_types_per_application_and_function(repos, out_dir):
@@ -2957,8 +3341,8 @@ def plot_trigger_types_per_application_and_function(repos, out_dir):
   fig, ax = plt.subplots(figsize=(6, 3))
   sns.barplot(x="Percentage", y="TriggerTypes", hue="Hue", order=order, hue_order=hue_order, data=df, orient="h", ax=ax)
 
-  sns.move_legend(
-    ax, "lower left",
+  legend_ext(
+    ax, loc="lower left",
     bbox_to_anchor=(0, 1),
     ncol=2,
     title=None,
@@ -2984,7 +3368,8 @@ def plot_trigger_types_per_application_and_function(repos, out_dir):
   ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/trigger_types_per_application_and_function.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/trigger_types_per_application_and_function.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/trigger_types_per_application_and_function.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_trigger_types_matrix(repos, out_dir):
@@ -3035,8 +3420,8 @@ def plot_trigger_types_matrix(repos, out_dir):
   df = df.dropna(axis="columns", how="all")
   df = df.dropna(axis="rows", how="all")
 
-  mask = df.to_numpy()
-  mask = np.arange(mask.shape[0])[:,None] < np.arange(mask.shape[1])
+  #mask = df.to_numpy()
+  #mask = np.arange(mask.shape[0])[:,None] < np.arange(mask.shape[1])
 
   steps = [1, 2, 5, 10]
   for step in steps:
@@ -3051,9 +3436,10 @@ def plot_trigger_types_matrix(repos, out_dir):
 
   fig, ax = plt.subplots(figsize=(6, 3))
 
-  sns.heatmap(df, annot=True, fmt=".0f", cmap="Blues", cbar=False, square=True, mask=mask, vmin=0, vmax=max(num_repositories), cbar_kws={"ticks": ticks})
+  # sns.heatmap(df, annot=True, fmt=".0f", cmap="Blues", cbar=False, square=True, mask=mask, vmin=0, vmax=max(num_repositories), cbar_kws={"ticks": ticks})
+  sns.heatmap(df, annot=True, fmt=".0f", cmap="Blues", cbar=False, square=True, vmin=0, vmax=max(num_repositories), cbar_kws={"ticks": ticks})
 
-  plt.xticks(rotation=45, ha='right')
+  plt.xticks(rotation=45, ha="right")
 
   ax.spines[:].set_visible(True)
 
@@ -3067,7 +3453,8 @@ def plot_trigger_types_matrix(repos, out_dir):
   # ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   # ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/trigger_types_matrix.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/trigger_types_matrix.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/trigger_types_matrix.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_trigger_types_per_execution_location(repos, max_per_bar, out_dir):
@@ -3141,18 +3528,15 @@ def plot_trigger_types_per_execution_location(repos, max_per_bar, out_dir):
     for execution_location in execution_locations_count.keys():
       offset_per_execution_location[execution_location] -= execution_locations_count[execution_location] / num_functions_per_execution_location[execution_location]
 
-  handles, labels = ax.get_legend_handles_labels()
-  ax.legend(handles[::-1], labels[::-1], title='Line', loc='upper left')
-
-  sns.move_legend(
-    ax, "lower left",
+  legend_ext(
+    ax, loc="lower left", reverse=True,
     bbox_to_anchor=(0, 1), ncol=3,
     title=None, frameon=False,
   )
 
   ax.xaxis.set_major_locator(ticker.MultipleLocator(0.2))
 
-  plt.xlabel("Distribution [%] of Trigger Types")
+  plt.xlabel("Distribution of Trigger Types [%]")
   plt.ylabel("Execution Location")
 
   plt.xlim(0, 1)
@@ -3160,7 +3544,8 @@ def plot_trigger_types_per_execution_location(repos, max_per_bar, out_dir):
   ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: f"{x*100:.0f}"))
   ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/trigger_types_per_execution_location.png", transparent=True, bbox_inches="tight", pad_inches=1)
+  #plt.savefig(f"{out_dir}/trigger_types_per_execution_location.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/trigger_types_per_execution_location.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_trigger_types_per_framework(repos, max_per_bar, out_dir):
@@ -3234,18 +3619,15 @@ def plot_trigger_types_per_framework(repos, max_per_bar, out_dir):
     for framework in frameworks_count.keys():
       offset_per_framework[framework] -= frameworks_count[framework] / num_functions_per_framework[framework]
 
-  handles, labels = ax.get_legend_handles_labels()
-  ax.legend(handles[::-1], labels[::-1], title='Line', loc='upper left')
-
-  sns.move_legend(
-    ax, "lower left",
+  legend_ext(
+    ax, loc="lower left", reverse=True,
     bbox_to_anchor=(0, 1), ncol=3,
     title=None, frameon=False,
   )
 
   ax.xaxis.set_major_locator(ticker.MultipleLocator(0.2))
 
-  plt.xlabel("Distribution [%] of Trigger Types")
+  plt.xlabel("Distribution of Trigger Types [%]")
   plt.ylabel("Framework")
 
   plt.xlim(0, 1)
@@ -3253,7 +3635,8 @@ def plot_trigger_types_per_framework(repos, max_per_bar, out_dir):
   ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: f"{x*100:.0f}"))
   ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/trigger_type_per_framework.png", transparent=True, bbox_inches="tight", pad_inches=1)
+  #plt.savefig(f"{out_dir}/trigger_type_per_framework.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/trigger_type_per_framework.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_trigger_types_per_platform(repos, max_per_bar, out_dir):
@@ -3327,18 +3710,15 @@ def plot_trigger_types_per_platform(repos, max_per_bar, out_dir):
     for platform in platforms_count.keys():
       offset_per_platform[platform] -= platforms_count[platform] / num_functions_per_platform[platform]
 
-  handles, labels = ax.get_legend_handles_labels()
-  ax.legend(handles[::-1], labels[::-1], title='Line', loc='upper left')
-
-  sns.move_legend(
-    ax, "lower left",
+  legend_ext(
+    ax, loc="lower left", reverse=True,
     bbox_to_anchor=(0, 1), ncol=3,
     title=None, frameon=False,
   )
 
   ax.xaxis.set_major_locator(ticker.MultipleLocator(0.2))
 
-  plt.xlabel("Distribution [%] of Trigger Types")
+  plt.xlabel("Distribution of Trigger Types [%]")
   plt.ylabel("Platforms")
 
   plt.xlim(0, 1)
@@ -3346,7 +3726,8 @@ def plot_trigger_types_per_platform(repos, max_per_bar, out_dir):
   ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: f"{x*100:.0f}"))
   ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/trigger_type_per_platform.png", transparent=True, bbox_inches="tight", pad_inches=1)
+  #plt.savefig(f"{out_dir}/trigger_type_per_platform.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/trigger_type_per_platform.pdf", transparent=True, bbox_inches="tight")
   plt.close()                                                                                                                                                                                                                                                                                                                                                                                                                                                             
 
 ###########################
@@ -3376,8 +3757,8 @@ def plot_execution_locations_per_function(repos, out_dir):
   }
 
   df = pd.DataFrame(data)
-  df['ExecutionLocation'] = pd.Categorical(df['ExecutionLocation'], categories=unique(execution_location_mapping.values()), ordered=True)
-  df = df.sort_values('ExecutionLocation')
+  df["ExecutionLocation"] = pd.Categorical(df["ExecutionLocation"], categories=unique(execution_location_mapping.values()), ordered=True)
+  df = df.sort_values("ExecutionLocation")
 
   fig, ax = plt.subplots(figsize=(10, 6))
   sns.barplot(x="Percentage", y="ExecutionLocation", data=df, orient="h", ax=ax)
@@ -3385,7 +3766,7 @@ def plot_execution_locations_per_function(repos, out_dir):
   ax.xaxis.set_major_locator(ticker.MultipleLocator(0.05))
 
   for index, value in enumerate(df["Percentage"]):
-    plt.text(value + 0.0025, index, f'{value:.2%}', va="center")
+    plt.text(value + 0.0025, index, f"{value:.2%}", va="center")
 
   plt.xlim(0, max(df["Percentage"]) * 1.1)
 
@@ -3395,7 +3776,8 @@ def plot_execution_locations_per_function(repos, out_dir):
   ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/execution_location_per_function.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/execution_location_per_function.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/execution_location_per_function.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_execution_locations_per_application(repos, out_dir):
@@ -3423,8 +3805,8 @@ def plot_execution_locations_per_application(repos, out_dir):
   }
 
   df = pd.DataFrame(data)
-  df['ExecutionLocation'] = pd.Categorical(df['ExecutionLocation'], categories=unique(execution_location_mapping.values()), ordered=True)
-  df = df.sort_values('ExecutionLocation')
+  df["ExecutionLocation"] = pd.Categorical(df["ExecutionLocation"], categories=unique(execution_location_mapping.values()), ordered=True)
+  df = df.sort_values("ExecutionLocation")
 
   fig, ax = plt.subplots(figsize=(10, 6))
   sns.barplot(x="Percentage", y="ExecutionLocation", data=df, orient="h", ax=ax)
@@ -3432,7 +3814,7 @@ def plot_execution_locations_per_application(repos, out_dir):
   ax.xaxis.set_major_locator(ticker.MultipleLocator(0.05))
 
   for index, value in enumerate(df["Percentage"]):
-    plt.text(value + 0.0025, index, f'{value:.2%}', va="center")
+    plt.text(value + 0.0025, index, f"{value:.2%}", va="center")
 
   plt.xlim(0, max(df["Percentage"]) * 1.1)
 
@@ -3442,7 +3824,8 @@ def plot_execution_locations_per_application(repos, out_dir):
   ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/execution_location_per_application.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/execution_location_per_application.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/execution_location_per_application.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_execution_locations_per_application_and_function(repos, out_dir):
@@ -3503,8 +3886,8 @@ def plot_execution_locations_per_application_and_function(repos, out_dir):
   fig, ax = plt.subplots(figsize=(6, 2))
   sns.barplot(x="Percentage", y="Location", hue="Hue", order=order, hue_order=hue_order, data=df, orient="h", ax=ax)
 
-  sns.move_legend(
-    ax, "lower left",
+  legend_ext(
+    ax, loc="lower left",
     bbox_to_anchor=(0, 1),
     ncol=2,
     title=None,
@@ -3530,7 +3913,8 @@ def plot_execution_locations_per_application_and_function(repos, out_dir):
   ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/execution_locations_per_application_and_function.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/execution_locations_per_application_and_function.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/execution_locations_per_application_and_function.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_execution_locations_matrix(repos, out_dir):
@@ -3581,8 +3965,8 @@ def plot_execution_locations_matrix(repos, out_dir):
   df = df.dropna(axis="columns", how="all")
   df = df.dropna(axis="rows", how="all")
 
-  mask = df.to_numpy()
-  mask = np.arange(mask.shape[0])[:,None] < np.arange(mask.shape[1])
+  #mask = df.to_numpy()
+  #mask = np.arange(mask.shape[0])[:,None] < np.arange(mask.shape[1])
 
   steps = [1, 2, 5, 10]
   for step in steps:
@@ -3597,7 +3981,8 @@ def plot_execution_locations_matrix(repos, out_dir):
 
   fig, ax = plt.subplots(figsize=(6, 3))
 
-  sns.heatmap(df, annot=True, fmt=".0f", cmap="Blues", cbar=False, square=True, mask=mask, vmin=0, vmax=max(num_repositories), cbar_kws={"ticks": ticks})
+  # sns.heatmap(df, annot=True, fmt=".0f", cmap="Blues", cbar=False, square=True, mask=mask, vmin=0, vmax=max(num_repositories), cbar_kws={"ticks": ticks})
+  sns.heatmap(df, annot=True, fmt=".0f", cmap="Blues", cbar=False, square=True, vmin=0, vmax=max(num_repositories), cbar_kws={"ticks": ticks})
 
   ax.spines[:].set_visible(True)
 
@@ -3605,13 +3990,16 @@ def plot_execution_locations_matrix(repos, out_dir):
 
   #plt.xlim(0, max(df["Percentage"]) * 1.1)
 
+  plt.yticks(rotation=0, ha="right")
+
   plt.xlabel("")
   plt.ylabel("")
 
   # ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: ""))
   # ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/execution_locations_matrix.png", transparent=True, bbox_inches='tight')
+  #plt.savefig(f"{out_dir}/execution_locations_matrix.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/execution_locations_matrix.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_execution_locations_per_trigger_type(repos, max_per_bar, out_dir):
@@ -3701,11 +4089,8 @@ def plot_execution_locations_per_trigger_type(repos, max_per_bar, out_dir):
     for trigger_type in trigger_types_count.keys():
       offset_per_trigger_type[trigger_type] -= trigger_types_count[trigger_type] / num_functions_per_trigger_type[trigger_type]
 
-  handles, labels = ax.get_legend_handles_labels()
-  ax.legend(handles[::-1], labels[::-1], title='Line', loc='upper left')
-
-  sns.move_legend(
-    ax, "lower left",
+  legend_ext(
+    ax, loc="lower left", reverse=True,
     bbox_to_anchor=(0, 1), ncol=3,
     title=None, frameon=False,
   )
@@ -3720,7 +4105,8 @@ def plot_execution_locations_per_trigger_type(repos, max_per_bar, out_dir):
   ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: f"{x*100:.0f}"))
   ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/execution_location_per_trigger_type.png", transparent=True, bbox_inches="tight", pad_inches=1)
+  #plt.savefig(f"{out_dir}/execution_location_per_trigger_type.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/execution_location_per_trigger_type.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_execution_locations_per_framework(repos, max_per_bar, out_dir):
@@ -3794,18 +4180,15 @@ def plot_execution_locations_per_framework(repos, max_per_bar, out_dir):
     for framework in frameworks_count.keys():
       offset_per_framework[framework] -= frameworks_count[framework] / num_functions_per_framework[framework]
 
-  handles, labels = ax.get_legend_handles_labels()
-  ax.legend(handles[::-1], labels[::-1], title='Line', loc='upper left')
-
-  sns.move_legend(
-    ax, "lower left",
+  legend_ext(
+    ax, loc="lower left", reverse=True,
     bbox_to_anchor=(0, 1), ncol=3,
     title=None, frameon=False,
   )
 
   ax.xaxis.set_major_locator(ticker.MultipleLocator(0.2))
 
-  plt.xlabel("Distribution [%] of Execution Locations")
+  plt.xlabel("Distribution of Execution Locations [%]")
   plt.ylabel("Frameworks")
 
   plt.xlim(0, 1)
@@ -3813,7 +4196,8 @@ def plot_execution_locations_per_framework(repos, max_per_bar, out_dir):
   ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: f"{x*100:.0f}"))
   ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/execution_location_per_framework.png", transparent=True, bbox_inches="tight", pad_inches=1)
+  #plt.savefig(f"{out_dir}/execution_location_per_framework.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/execution_location_per_framework.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def plot_execution_locations_per_platform(repos, max_per_bar, out_dir):
@@ -3887,18 +4271,15 @@ def plot_execution_locations_per_platform(repos, max_per_bar, out_dir):
     for platform in platforms_count.keys():
       offset_per_platform[platform] -= platforms_count[platform] / num_functions_per_platform[platform]
 
-  handles, labels = ax.get_legend_handles_labels()
-  ax.legend(handles[::-1], labels[::-1], title='Line', loc='upper left')
-
-  sns.move_legend(
-    ax, "lower left",
+  legend_ext(
+    ax, loc="lower left", reverse=True,
     bbox_to_anchor=(0, 1), ncol=3,
     title=None, frameon=False,
   )
 
   ax.xaxis.set_major_locator(ticker.MultipleLocator(0.2))
 
-  plt.xlabel("Distribution [%] of Execution Locations")
+  plt.xlabel("Distribution of Execution Locations [%]")
   plt.ylabel("Platforms")
 
   plt.xlim(0, 1)
@@ -3906,7 +4287,8 @@ def plot_execution_locations_per_platform(repos, max_per_bar, out_dir):
   ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,y: f"{x*100:.0f}"))
   ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 
-  plt.savefig(f"{out_dir}/execution_location_per_platform.png", transparent=True, bbox_inches="tight", pad_inches=1)
+  #plt.savefig(f"{out_dir}/execution_location_per_platform.png", transparent=True, bbox_inches="tight")
+  plt.savefig(f"{out_dir}/execution_location_per_platform.pdf", transparent=True, bbox_inches="tight")
   plt.close()
 
 def main():
